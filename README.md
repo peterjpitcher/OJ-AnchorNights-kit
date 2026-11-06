@@ -9,7 +9,7 @@ Next.js 16, React 19, Tailwind CSS 4, Node 24.
 **1. `package.json`**
 
 ```json
-"@anchor-nights/kit": "github:peterjpitcher/OJ-AnchorNights-kit#v1.0.0"
+"@anchor-nights/kit": "github:peterjpitcher/OJ-AnchorNights-kit#v1.1.0"
 ```
 
 The kit expects `react` and `react-dom` 19, `lucide-react` 1.49 or later, and (optionally) `next` 16 in the app. It brings `clsx`, `tailwind-merge` and `qrcode.react` itself.
@@ -78,6 +78,14 @@ Tailwind names: `bg-bg`, `bg-surface`, `bg-surface-raised`, `bg-surface-sunk`, `
 | `@anchor-nights/kit/env` | Plain JavaScript, safe for `next.config.ts`: `validateBuildEnv(rules)`, `checkEnv`, `defineEnv`, presets `SUPABASE_PUBLIC_ENV`, `SITE_URL_ENV`, `ANCHOR_API_ENV`, `ERROR_SINK_ENV`, `buildIdFromEnv`, `getPublicSupabaseEnv`. |
 | `@anchor-nights/kit/errors` | `reportError(context, err, options)`, `createErrorReporter({ app })`, `logActionFailure`, `logActionLatency`, `redact`. Redacts uuids, emails, UK phone numbers and pound amounts; 2 second timeout; never throws. Posts to `sinkUrl` or `ERROR_SINK_URL` (optional `ERROR_SINK_TOKEN`, `ERROR_APP_NAME`). |
 | `@anchor-nights/kit/qr` | `getSiteOrigin` (a preview never gets a production origin; production never gets localhost), `getRequestOrigin`, `buildQrUrl`, `qrValue`, `isLoopbackHost`, and `Qr`, which draws nothing for an empty or localhost value. |
+| `@anchor-nights/kit/tv` | `Stage` (the 1920 by 1080 canvas scaled to the window; pass a special night's `cssVars` as `style`), `computeScale`, `buildFitSteps`, `layoutFits`, `measureLayout` and `useFitStep` (shrink text until a screen fits), `tvText`, `useWakeLock` (keeps the TV awake), `useConnectionHealth` with `ConnectionBanner` (banner after 10 seconds, one reload at 30, never offline or over unsaved work), `useBuildCheck` (picks up a new release when the app says it is safe), `useClockOffset` (server clock offset). |
+
+## TV adoption notes
+
+- Each app serves its own `GET /api/build` answering `{ "build": "<NEXT_PUBLIC_BUILD_ID>" }` and `GET /api/time` answering `{ "now": Date.now() }`, both with `Cache-Control: no-store`.
+- `useBuildCheck({ mode, clientBuild: process.env.NEXT_PUBLIC_BUILD_ID, isSafeToReload })`: `mode: 'auto'` on the TV and phones, `'prompt'` for the host. `isSafeToReload` is the app's own rule (between games, never mid-reveal). Cash Bingo passes `storageKey: 'anchor-bingo:build-reloaded-for'` so tabs that already reloaded for a release are remembered.
+- `ConnectionBanner` takes `hasUnsavedWork` (a boolean or a function) and never auto reloads while it is true; the manual Refresh asks first.
+- `Stage` uses the kit's `.anchor-stage` classes; add your own with `className` (Quiz Night passes `"viewport tv"`).
 
 ## Release rule
 
