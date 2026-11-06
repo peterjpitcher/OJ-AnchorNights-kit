@@ -1,6 +1,6 @@
 {
   "name": "@anchor-nights/kit",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Shared look, TV and engineering kit for The Anchor's game nights (Quiz Night, Cash Bingo, Music Bingo, Tasting Night).",
   "license": "UNLICENSED",
   "private": true,
@@ -21,6 +21,35 @@
     "!src/**/*.test.tsx"
   ],
   "exports": {
+    "./tokens.css": "./src/tokens/tokens.css",
+    "./tokens": {
+      "types": "./src/tokens/index.ts",
+      "default": "./src/tokens/index.ts"
+    },
+    "./ui": {
+      "types": "./src/ui/index.ts",
+      "default": "./src/ui/index.ts"
+    },
+    "./branding": {
+      "types": "./src/branding/index.ts",
+      "default": "./src/branding/index.ts"
+    },
+    "./dates": {
+      "types": "./src/dates/index.ts",
+      "default": "./src/dates/index.ts"
+    },
+    "./env": {
+      "types": "./src/env/index.d.ts",
+      "default": "./src/env/index.js"
+    },
+    "./errors": {
+      "types": "./src/errors/index.ts",
+      "default": "./src/errors/index.ts"
+    },
+    "./qr": {
+      "types": "./src/qr/index.ts",
+      "default": "./src/qr/index.ts"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -31,10 +60,34 @@
     "test:watch": "vitest",
     "verify": "npm run lint && npm run typecheck && npm test && npm run test:utc"
   },
+  "peerDependencies": {
+    "react": "^19",
+    "react-dom": "^19",
+    "next": "^16",
+    "lucide-react": "^1.49.0"
+  },
+  "peerDependenciesMeta": {
+    "next": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "qrcode.react": "^4.2.0",
+    "tailwind-merge": "^3.7.0"
+  },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^24",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "jsdom": "^31.0.0",
+    "lucide-react": "^1.70.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.72.1",
     "vitest": "^5.1.0"
