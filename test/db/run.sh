@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 #
-# Migration replay test for the auth templates: npm run test:db
+# Migration replay test for the auth and TV pairing templates: npm run test:db
 #
 # For each variant in fixtures/ (fresh: no profiles table; quiz: Quiz Night's
 # profiles keyed by user_id with a text role; cash: Cash Bingo's profiles keyed
 # by id with an enum role), on a throwaway Postgres with Supabase stubs:
 #   1. apply the variant's own pre-existing schema (fixtures/<variant>/*.sql),
 #   2. apply the kit templates rendered by src/auth/sql/print.js, plus the
-#      active_staff_gate on the variant's app table,
+#      active_staff_gate on the variant's app table, then the TV pairing
+#      templates from src/pairing/sql/print.js,
 #   3. run checks.sh as anon, pending, host, admin, a banned host, a
 #      deactivated host, a user with no profile, the service role and the
-#      Auth hook role.
+#      Auth hook role, then checks-pairing.sh for TV pairing.
 # Nothing here touches a real Supabase project.
 #
 # Locally, with no PGHOST set, it makes its own cluster with initdb on
@@ -88,6 +89,9 @@ for variant in $VARIANTS; do
   out="$(mktemp -d "${TMPDIR:-/tmp}/kit-auth-sql.XXXXXX")"
   node "$ROOT/src/auth/sql/print.js" --profile-id "$profile_id" --gate "$gate_table" \
     --out "$out" --timestamp 20261110120000 >/dev/null || { echo "FAIL  render"; failed=1; continue; }
+  # The pairing templates come after the auth ones, as they must in an app.
+  node "$ROOT/src/pairing/sql/print.js" --out "$out" --timestamp 20261112120000 >/dev/null \
+    || { echo "FAIL  render pairing"; failed=1; continue; }
   applied=0
   for f in $(ls "$out"/*.sql | LC_ALL=C sort); do
     if ! res="$(p -d "$db" --single-transaction -f "$f" 2>&1)"; then
@@ -106,6 +110,8 @@ for variant in $VARIANTS; do
 
   TEST_DB_NAME="$db" PROFILE_ID="$profile_id" GATE_TABLE="$gate_table" VARIANT="$variant" \
     bash "$HERE/checks.sh" || failed=1
+  TEST_DB_NAME="$db" PROFILE_ID="$profile_id" VARIANT="$variant" \
+    bash "$HERE/checks-pairing.sh" || failed=1
 done
 
 [ "$failed" -eq 0 ]

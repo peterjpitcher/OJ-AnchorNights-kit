@@ -1,6 +1,6 @@
 {
   "name": "@anchor-nights/kit",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Shared look, TV, sign-in and engineering kit for The Anchor's game nights (Quiz Night, Cash Bingo, Music Bingo, Tasting Night).",
   "license": "UNLICENSED",
   "private": true,
@@ -97,6 +97,26 @@
     "./auth/sql": {
       "types": "./src/auth/sql/index.d.ts",
       "default": "./src/auth/sql/index.js"
+    },
+    "./pairing": {
+      "types": "./src/pairing/index.ts",
+      "default": "./src/pairing/index.ts"
+    },
+    "./pairing/shared": {
+      "types": "./src/pairing/shared.ts",
+      "default": "./src/pairing/shared.ts"
+    },
+    "./pairing/screens": {
+      "types": "./src/pairing/screens/index.ts",
+      "default": "./src/pairing/screens/index.ts"
+    },
+    "./pairing/sql": {
+      "types": "./src/pairing/sql/index.d.ts",
+      "default": "./src/pairing/sql/index.js"
+    },
+    "./front": {
+      "types": "./src/front/index.ts",
+      "default": "./src/front/index.ts"
     },
     "./package.json": "./package.json"
   },

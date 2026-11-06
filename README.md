@@ -9,7 +9,7 @@ Next.js 16, React 19, Tailwind CSS 4, Node 24.
 **1. `package.json`**
 
 ```json
-"@anchor-nights/kit": "github:peterjpitcher/OJ-AnchorNights-kit#v2.0.1"
+"@anchor-nights/kit": "github:peterjpitcher/OJ-AnchorNights-kit#v2.1.0"
 ```
 
 The kit expects `react` and `react-dom` 19, `lucide-react` 1.49 or later, and (optionally) `next` 16 in the app. It brings `clsx`, `tailwind-merge`, `qrcode.react`, `zod` and `server-only` itself.
@@ -84,6 +84,8 @@ Tailwind names: `bg-bg`, `bg-surface`, `bg-surface-raised`, `bg-surface-sunk`, `
 | `@anchor-nights/kit/events/image-host` | Plain JavaScript, safe for `next.config.ts`: `EVENT_IMAGE_REMOTE_PATTERN`, `isAllowedEventImageUrl`. |
 | `@anchor-nights/kit/events/fixtures` | Made-up management API responses for an app's own tests. |
 | `@anchor-nights/kit/auth` and `auth/*` | Sign-in, invites, roles, the proxy adapter and the migration templates. See Sign-in adoption below. |
+| `@anchor-nights/kit/pairing` and `pairing/*` | TV pairing: the code screen, device cookies, revoke, the `/tv` page shell and resolver interface, and the migration templates. See TV pairing adoption below. |
+| `@anchor-nights/kit/front` | `FrontPage` (three tiles and the "Other nights" row), `buildOtherNights`, `NIGHT_LABELS`. See Front page below. |
 | `@anchor-nights/kit/promo` | `buildIdlePlaylist`, `buildThankYouPlaylist`, `PromoSlide` (draws any slide), `SlideLoop`, `useScreenFeed`, and the slides `EventSlide`, `NextNightSlide`, `WhatsOnSlide`, `ReviewSlide`, `ThankYouSlide`. |
 
 ## TV adoption notes
@@ -318,6 +320,166 @@ Negative proofs to record per app: a sign-up request creates no user; a magic li
 - **Alerts** (a sign-in with no CAPTCHA token, an orphaned invite user, a failed ban) go to the app's `alert` handler; reaching a person, and repeating daily, is the app's job.
 - **Admin email change** tells both addresses only if the app passes `notifyEmailChange`; otherwise the admin is told to.
 
+## TV pairing adoption (spec S3.1, S3.2)
+
+A TV opens `/tv`. Unpaired, it shows a 6-digit code; a signed-in host or admin types it into the host console; the TV then holds a device cookie and `/tv` finds tonight's game by the app's own rule, or shows the idle loop. An admin can remove (revoke) a TV, and its next request is unpaired again. The kit never makes a Supabase client: every factory takes the app's own.
+
+| Import | Where it runs | What it gives you |
+|---|---|---|
+| `@anchor-nights/kit/pairing` | **Server only** | `createTvPairing` (`requirePairedTv`, `readTvDevice`, `resolveTvView`, `routes.GET` and `routes.POST`, `actions.pairTv`, `actions.revokeTv`, `actions.listTvDevices`, `maintenance.prunePairing`), `TvPageShell`, and everything in `pairing/shared`. |
+| `@anchor-nights/kit/pairing/shared` | Anywhere | `TvDevice`, `TvDeviceRow`, `TvView`, `ResolveTonight`, `isRehearsalRequest`, `normalisePairingCode`, `formatPairingCode`, the cookie names, `PAIRING_MESSAGES`, the timings. |
+| `@anchor-nights/kit/pairing/screens` | Client components | `TvPairingScreen` (the code on the TV), `PairTvForm` (host console), `TvDevicesPanel` (admin), `TvNotice`. |
+| `@anchor-nights/kit/pairing/sql` | Node (plain JS) | `renderPairingMigrations`, `pairingMigrationFiles`; the CLI is `src/pairing/sql/print.js`. |
+
+It needs the kit auth module in place first (its migrations, `defineAuthConfig`, the server and admin clients). There are no new environment variables.
+
+### 1. Migrations, after the auth ones
+
+```bash
+node node_modules/@anchor-nights/kit/src/pairing/sql/print.js \
+  --out supabase/migrations --timestamp 20261112120000   # any version after the app's kit_auth_* files
+```
+
+That writes `kit_tv_pairing_tables` (`tv_devices`, `tv_pairing_codes`, `tv_pairing_attempts`) and `kit_tv_pairing_functions` (the `kit_tv_*` functions). Apply them in that order through `prod-migrate`; each is safe to apply twice, and the first refuses to run if the auth migrations are missing. RLS is on with no policies, every grant to `public`, `anon` and `authenticated` is revoked, and the functions are `SECURITY DEFINER` with an empty `search_path`, executable by the service role only. The tables are invisible to the `authenticated` role, so `ACTIVE_STAFF_GATE_AUDIT_SQL` still finds nothing.
+
+### 2. The server module, once per app
+
+```ts
+// src/lib/tv-pairing.ts
+import 'server-only';
+import { cookies, headers } from 'next/headers';
+import { createTvPairing } from '@anchor-nights/kit/pairing';
+import { authConfig } from '@/lib/auth-config';            // the app's defineAuthConfig(...)
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { reportError } from '@/lib/report-error';           // the app's createErrorReporter
+
+export const tvPairing = createTvPairing({
+  config: authConfig,
+  serverClient: createClient,
+  adminClient: createAdminClient,
+  cookies,
+  headers,
+  report: (scope, err) => void reportError({ scope }, err),
+});
+```
+
+### 3. Routes and actions
+
+```ts
+// src/app/api/tv/pairing/route.ts: POST asks for a code, GET polls (rate limited)
+import { tvPairing } from '@/lib/tv-pairing';
+export const dynamic = 'force-dynamic';
+export const POST = (request: Request): Promise<Response> => tvPairing.routes.POST(request);
+export const GET = (request: Request): Promise<Response> => tvPairing.routes.GET(request);
+```
+
+```ts
+// src/app/tv/actions.ts
+'use server';
+import type { PairingFormState } from '@anchor-nights/kit/pairing';
+import { tvPairing } from '@/lib/tv-pairing';
+export async function pairTv(prev: PairingFormState, fd: FormData) { return tvPairing.actions.pairTv(prev, fd); }
+export async function revokeTv(prev: PairingFormState, fd: FormData) { return tvPairing.actions.revokeTv(prev, fd); }
+```
+
+`/tv` and `/api/tv/pairing` must stay outside the auth proxy's protected `routes` (the TV is not signed in). They carry no ambient authority: a code alone does nothing until active staff type it, and the device cookie only ever lands in the browser holding the matching pairing secret.
+
+### 4. The `/tv` page
+
+```tsx
+// src/app/tv/page.tsx
+import { isRehearsalRequest, TvPageShell } from '@anchor-nights/kit/pairing';
+import { tvPairing } from '@/lib/tv-pairing';
+import { findTonight } from '@/lib/tv-tonight';             // the app's own rule, below
+export const dynamic = 'force-dynamic';
+
+export default async function TvPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const view = await tvPairing.resolveTvView({ resolveTonight: findTonight, rehearsal: isRehearsalRequest(await searchParams) });
+  return (
+    <TvPageShell
+      view={view}
+      pairing={{ appName: 'Quiz Night' }}
+      renderGame={(game) => <Display sessionId={game.id} />}  // the app's display
+      renderIdle={() => <IdleLoop />}                          // the app's SlideLoop of buildIdlePlaylist
+    />
+  );
+}
+```
+
+`resolveTonight({ device, now, rehearsal })` returns tonight's game or `null`. It is each app's rule (spec section 6): Quiz Night, the newest unfinished session whose `night_date` is today in London (Q-8); Music Bingo, the session for today's London date (M-9); Tasting Night, the night whose `events.event_date` is today in London (T-5); Cash Bingo, tonight's session, with `/tv` drawing the same page as `/display`, which stays public (C-6). Use `getTodayIsoDateInLondon(now)` from `@anchor-nights/kit/dates`. Skip rehearsal games unless `rehearsal` is true (only `?rehearsal=1` sets it). If it throws, the TV shows "Reconnecting" and reloads after 30 seconds; it never shows a game or a pairing code on an outage. Pages and Route Handlers that serve the TV's data can call `tvPairing.requirePairedTv(request)` (the device, or null for unpaired, revoked or an outage).
+
+### 5. Host console and admin
+
+- Host console: `<PairTvForm action={pairTv} />` (host and admin may pair).
+- Admin page: `<TvDevicesPanel devices={(await tvPairing.actions.listTvDevices()) ?? []} revokeAction={revokeTv} />` (admin only; `listTvDevices` answers null for anyone else).
+
+### 6. Daily cron
+
+Beside `pruneAuthData()`, call `tvPairing.maintenance.prunePairing()`: codes go after a day, attempts after 30 days, removed TVs 12 months after removal.
+
+### Cookies
+
+| Cookie | Holds | Life |
+|---|---|---|
+| `__Host-anchor-tv` (`anchor-tv` on http localhost) | The device token (256 random bits). Only its SHA-256 is stored. | 400 days, the most a browser keeps one. A TV unused that long pairs again. |
+| `__Host-anchor-tv-pairing` (`anchor-tv-pairing`) | The pairing secret that proves this screen asked for the code. | 11 minutes; cleared once paired. |
+
+Both are `HttpOnly`, `SameSite=Lax`, `Path=/`, and `Secure` on https. The `__Host-` prefix means no other subdomain can set or read them.
+
+### Decisions and limits
+
+- **Codes are stored as SHA-256, not a keyed hash.** Six digits can be reversed from a hash, but a code is not a credential: it only approves a TV when an active host or admin types it, and the device token goes only to the screen holding the matching pairing secret (256 bits, also hashed). A keyed hash would need a new secret in every app for no real gain.
+- **Brute force:** five wrong codes in 15 minutes locks that user, and separately that IP, for the rest of the 15 minutes. Every wrong code also counts against every code live at the time, and a code burns after five, so no live code can be guessed with more than five tries; the TV simply shows a new one. Pub staff share one IP, so one person's five wrong codes pause pairing for everyone there for up to 15 minutes.
+- **Asking for codes:** 10 per IP in 10 minutes, at most 200 live at once, and a screen asking again replaces its own code. The poll answers at most once a second per code and at most 400 times per code.
+- **Staff checks twice:** the actions check the session (`current_staff_role()`), and the database functions check `kit_staff_role_for()` again. An approval by someone deactivated before the TV collects it is not honoured.
+- **IP addresses** are stored on codes (deleted after a day) and pairing attempts (deleted after 30 days), only to enforce the limits.
+- **No audit rows in `auth_audit`:** its event list belongs to the auth standard. `tv_pairing_attempts` and `tv_devices` (`created_by`, `revoked_by`) are the pairing record.
+- **Removing a TV** takes effect at its next request to the server (a page load, or any route that calls `requirePairedTv`); a screen that never asks again keeps what it already drew until then.
+
+## Front page (spec S2.3)
+
+The front page every night shares, from Cash Bingo's: logo, greeting, the night's name, three tiles (Host console, Pub TV, Admin) and an "Other nights" row. It is server-renderable and holds no hostnames: the app passes its own links and its sister nights' addresses.
+
+```tsx
+// src/app/page.tsx
+import Link from 'next/link';
+import { buildOtherNights, FrontPage } from '@anchor-nights/kit/front';
+
+const otherNights = buildOtherNights({
+  current: 'cash',                                   // quiz, cash, music or tasting
+  urls: {
+    quiz: process.env.NEXT_PUBLIC_QUIZ_NIGHT_URL,
+    music: process.env.NEXT_PUBLIC_MUSIC_BINGO_URL,
+    tasting: process.env.NEXT_PUBLIC_TASTING_NIGHT_URL,
+  },
+});
+
+export default function Home() {
+  return (
+    <FrontPage
+      appName="Bingo night"
+      tiles={{ tv: { href: '/tv' }, admin: { href: '/admin', hint: 'Sessions, pots and winners' } }}
+      otherNights={otherNights}
+      backdropSrc="/the-anchor-bar.jpg"              // optional, from the app's public folder
+      linkComponent={Link}
+    />
+  );
+}
+```
+
+| Prop | Default |
+|---|---|
+| `appName` | Required: the heading. |
+| `greeting`, `lead` | "Where everyone's welcome"; "Staff tools for running the night. Pick where you are heading." |
+| `tiles.host`, `tiles.tv`, `tiles.admin` | `/host` "Run tonight's games", `/tv` "Open the big screen on this device", `/admin` "Set-up, staff and paired TVs". |
+| `otherNights` | From `buildOtherNights`: every night but this one, in the order Quiz Night, Cash Bingo, Music Bingo, Tasting Night. A night with no URL, or one that is not https (plain http only on localhost), is left out. Empty means no row. |
+| `backdropSrc`, `logoSrc` | No photo; the white wordmark. |
+| `linkComponent` | A plain link. Pass Next's `Link` so the tiles prefetch. |
+| `showCopyright` | On: "© year Orange Jelly Limited. All rights reserved.", the year in London. |
+
+The environment variable names above are a suggestion; each app chooses its own and lists them in `validateBuildEnv` if it wants the build to insist on them.
+
 ## Release rule
 
 A release is a git tag (`v1.0.0`, `v1.1.0`, ...). Each app moves to a new tag in its own PR, one app at a time, never all at once. A breaking change is a new major version.
@@ -328,5 +490,5 @@ A release is a git tag (`v1.0.0`, `v1.1.0`, ...). Each app moves to a new tag in
 nvm use            # Node 24
 npm ci
 npm run verify     # lint (zero warnings), typecheck, tests under Europe/London and under UTC
-npm run test:db    # replays the auth migration templates on a throwaway Postgres 17 (needs initdb, pg_ctl, psql)
+npm run test:db    # replays the auth and pairing migration templates on a throwaway Postgres 17 (needs initdb, pg_ctl, psql)
 ```
