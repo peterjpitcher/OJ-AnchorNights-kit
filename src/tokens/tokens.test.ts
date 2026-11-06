@@ -104,10 +104,14 @@ describe('component classes', () => {
   const notColours =
     /^(xs|sm|base|lg|xl|[2-9]xl|left|right|center|justify|balance|pretty|wrap|nowrap|ellipsis|clip|solid|dashed|none|t|b|l|r|x|y|[0-9]+|\[.*\]|tv-.+|card|input|full|collapse|separate|opacity-.+)$/;
 
-  const uiDir = join(import.meta.dirname, '..', 'ui');
-  const sources = readdirSync(uiDir)
-    .filter((file) => file.endsWith('.tsx'))
-    .map((file) => readFileSync(join(uiDir, file), 'utf8'))
+  // Every module that ships components or class strings: ui, and the tv screens.
+  const sources = ['ui', 'tv']
+    .flatMap((dir) => {
+      const full = join(import.meta.dirname, '..', dir);
+      return readdirSync(full)
+        .filter((file) => /\.tsx?$/.test(file) && !file.includes('.test.'))
+        .map((file) => readFileSync(join(full, file), 'utf8'));
+    })
     .join('\n');
 
   it('names only colours that tokens.css defines', () => {
