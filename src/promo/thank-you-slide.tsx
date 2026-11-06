@@ -25,7 +25,7 @@ import type { ScreenEvent } from '../events/types';
 import { Qr, qrValue } from '../qr';
 import { TV_KICKER_CLASS, tvText } from '../tv/tv-text';
 
-const CARD_QR_SIZE = 'max(30vh, 240px)';
+const CARD_QR_SIZE = 'max(calc(30 * var(--anchor-vh, 1vh)), 240px)';
 
 export interface ThankYouSlideProps {
   /** The app's review short link; null or anything but an Anchor link shows no review card. */
@@ -51,17 +51,19 @@ interface QrCardProps {
   url: string;
   qrTitle: string;
   lines: string[];
+  /** Keep each line on one line (a web address, which would otherwise wrap after "the-"). */
+  nowrap?: boolean;
 }
 
-function QrCard({ title, url, qrTitle, lines }: QrCardProps): React.ReactElement {
+function QrCard({ title, url, qrTitle, lines, nowrap = false }: QrCardProps): React.ReactElement {
   return (
-    <div className="flex w-[max(34vh,280px)] flex-col items-center gap-[1.6vh] text-center" data-card={title}>
-      <div className="rounded-card border-2 border-anchor-gold-bright bg-white p-[clamp(10px,1.5vh,16px)] shadow-lift">
+    <div className="flex w-[max(calc(34*var(--anchor-vh,1vh)),280px)] flex-col items-center gap-[calc(1.6*var(--anchor-vh,1vh))] text-center" data-card={title}>
+      <div className="rounded-card border-2 border-anchor-gold-bright bg-white p-[clamp(10px,calc(1.5*var(--anchor-vh,1vh)),16px)] shadow-lift">
         <Qr value={url} size={320} title={qrTitle} style={{ width: CARD_QR_SIZE, height: CARD_QR_SIZE }} />
       </div>
       <p className={tvText('lg', 'font-display uppercase leading-none')}>{title}</p>
       {lines.map((line) => (
-        <p key={line} className={tvText('xs', 'font-semibold text-balance text-anchor-cream-text')}>
+        <p key={line} className={tvText('xs', 'font-semibold text-anchor-cream-text', nowrap ? 'whitespace-nowrap' : 'text-balance')}>
           {line}
         </p>
       ))}
@@ -88,14 +90,14 @@ export function ThankYouSlide({
   return (
     <section
       aria-label={headline}
-      className="mx-auto flex h-full w-full max-w-[1800px] items-center gap-[4.6vw] text-anchor-cream-text"
+      className="mx-auto flex h-full w-full max-w-[1800px] items-center gap-[calc(4.6*var(--anchor-vw,1vw))] text-anchor-cream-text"
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-[2.2vh] text-left">
+      <div className="flex min-w-0 flex-1 flex-col gap-[calc(2.2*var(--anchor-vh,1vh))] text-left">
         {kicker && <p className={TV_KICKER_CLASS}>{kicker}</p>}
         <h1 className={tvText('3xl', 'max-w-[12ch] leading-[0.9]')}>{headline}</h1>
         <p className={tvText('xl', 'font-script text-anchor-gold-bright')}>{tagline}</p>
       </div>
-      <div className="flex shrink-0 items-start gap-[2.6vw]">
+      <div className="flex shrink-0 items-start gap-[calc(2.6*var(--anchor-vw,1vw))]">
         {review && <QrCard title="Review us" url={review} qrTitle="QR code: leave feedback" lines={['Scan to leave feedback']} />}
         {showNext && nextNight && nextQr ? (
           <QrCard
@@ -111,6 +113,7 @@ export function ThankYouSlide({
               url={WHATS_ON_URL}
               qrTitle="QR code: what's on at The Anchor"
               lines={[printedAddress(WHATS_ON_URL)]}
+              nowrap
             />
           )
         )}

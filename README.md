@@ -9,7 +9,7 @@ Next.js 16, React 19, Tailwind CSS 4, Node 24.
 **1. `package.json`**
 
 ```json
-"@anchor-nights/kit": "github:peterjpitcher/OJ-AnchorNights-kit#v2.0.0"
+"@anchor-nights/kit": "github:peterjpitcher/OJ-AnchorNights-kit#v2.0.1"
 ```
 
 The kit expects `react` and `react-dom` 19, `lucide-react` 1.49 or later, and (optionally) `next` 16 in the app. It brings `clsx`, `tailwind-merge`, `qrcode.react`, `zod` and `server-only` itself.
@@ -92,6 +92,8 @@ Tailwind names: `bg-bg`, `bg-surface`, `bg-surface-raised`, `bg-surface-sunk`, `
 - `useBuildCheck({ mode, clientBuild: process.env.NEXT_PUBLIC_BUILD_ID, isSafeToReload })`: `mode: 'auto'` on the TV and phones, `'prompt'` for the host. `isSafeToReload` is the app's own rule (between games, never mid-reveal). Cash Bingo passes `storageKey: 'anchor-bingo:build-reloaded-for'` so tabs that already reloaded for a release are remembered.
 - `ConnectionBanner` takes `hasUnsavedWork` (a boolean or a function) and never auto reloads while it is true; the manual Refresh asks first.
 - `Stage` uses the kit's `.anchor-stage` classes; add your own with `className` (Quiz Night passes `"viewport tv"`).
+- Inside a `Stage`, design in canvas pixels and let the Stage do the scaling. Since 2.0.1 the canvas sets `--anchor-vh` (10.8px) and `--anchor-vw` (19.2px), and the `text-tv-*` sizes and the promo slides use them, so `tvText('base')` is 44px of canvas inside a Stage and still `clamp(30px, 4.1vh, 44.3px)` of window outside one. For a size of your own, write `calc(40 * var(--anchor-vh, 1vh))` rather than `40vh`. Use the `text-tv-*` classes (or `tvText`), not `var(--text-tv-*)` in your own CSS: a variable read off `:root` resolves its vh against the window.
+- `measureLayout` measures in the element's own layout pixels (since 2.0.1), so `(el) => layoutFits(measureLayout(el))` is right at any Stage scale, and it also fails a centred column whose content spills above its top. A `fits` callback of your own must not mix `getBoundingClientRect` (scaled) with `clientHeight` or `offsetHeight` (not scaled).
 
 ## Events and promo adoption (spec S7)
 

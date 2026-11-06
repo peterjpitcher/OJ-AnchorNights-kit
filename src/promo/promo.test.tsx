@@ -46,6 +46,17 @@ describe('ThankYouSlide (spec S7.5)', () => {
     expect(text).not.toMatch(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/);
   });
 
+  it('keeps the fallback address on one line and lets the other lines balance (2.0.1)', () => {
+    const fallback = render(<ThankYouSlide reviewUrl={REVIEW} nextNight={null} nextNightQr={null} nowMs={NOW} />);
+    const address = fallback.getByText('the-anchor.pub/whats-on');
+    expect(address.className.split(' ')).toContain('whitespace-nowrap');
+    expect(address.className.split(' ')).not.toContain('text-balance');
+    expect(fallback.getByText('Scan to leave feedback').className.split(' ')).toContain('text-balance');
+    cleanup();
+    const next = render(<ThankYouSlide reviewUrl={REVIEW} nextNight={NEXT} nextNightQr={LINK} nowMs={NOW} />);
+    expect(next.getByText('Test Quiz Night').className.split(' ')).not.toContain('whitespace-nowrap');
+  });
+
   it('falls back rather than print a broken date or draw an empty code', () => {
     const broken = { ...NEXT, startsAt: 'not a date' };
     const a = render(<ThankYouSlide reviewUrl={REVIEW} nextNight={broken} nextNightQr={LINK} nowMs={NOW} />);
@@ -96,6 +107,19 @@ describe('the other slides', () => {
     const { getByText, container } = render(<WhatsOnSlide />);
     getByText('the-anchor.pub/whats-on');
     expect(container.querySelector('svg')).not.toBeNull();
+  });
+
+  it('keeps the what\'s-on address on one line at Cash Bingo\'s size (2.0.1)', () => {
+    const { getByText } = render(<WhatsOnSlide />);
+    const address = getByText('the-anchor.pub/whats-on');
+    const classes = address.className.split(' ');
+    expect(classes).toContain('whitespace-nowrap');
+    expect(classes).not.toContain('break-all');
+    // Cash Bingo's TV_SIZE.url (52px at 1080p), not tv-lg (56px).
+    expect(classes).toContain('text-[length:clamp(35px,calc(4.8*var(--anchor-vh,1vh)),78px)]');
+    expect(classes.filter((name) => name.startsWith('text-tv-'))).toEqual([]);
+    // The hyphen in the text stays a real hyphen: only the CSS keeps it on one line.
+    expect(address.textContent).not.toContain('\u2011');
   });
 
   it('hands the app its own slides', () => {
