@@ -1,6 +1,6 @@
 {
   "name": "@anchor-nights/kit",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Shared look, TV, sign-in and engineering kit for The Anchor's game nights (Quiz Night, Cash Bingo, Music Bingo, Tasting Night).",
   "license": "UNLICENSED",
   "private": true,
