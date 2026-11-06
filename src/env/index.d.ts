@@ -42,6 +42,8 @@ export declare const SUPABASE_PUBLIC_ENV: readonly EnvRule[];
 export declare const SITE_URL_ENV: readonly EnvRule[];
 export declare const ANCHOR_API_ENV: readonly EnvRule[];
 export declare const ERROR_SINK_ENV: readonly EnvRule[];
+export declare const AUTH_ENV: readonly EnvRule[];
+export declare const AUDIT_HMAC_KEY_SHAPE: RegExp;
 
 export interface PublicSupabaseEnv {
   url: string;

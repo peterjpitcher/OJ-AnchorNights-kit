@@ -210,6 +210,32 @@ export const ANCHOR_API_ENV = Object.freeze([
   Object.freeze({ name: 'ANCHOR_API_BASE_URL', kind: 'api-base-url' }),
 ]);
 
+/**
+ * The shape of AUDIT_HMAC_KEY: a version, a colon, then at least 32 random
+ * characters (`v1:` then `openssl rand -base64 48`). The version is stored
+ * with every pseudonym so the key can be rotated.
+ */
+export const AUDIT_HMAC_KEY_SHAPE = /^v[0-9]+:[A-Za-z0-9+/=_-]{32,}$/;
+
+/**
+ * What the auth module needs on top of SUPABASE_PUBLIC_ENV (standard section
+ * 15). All required on every build: a missing one fails the build rather than
+ * shipping a sign-in that cannot work. NEXT_PUBLIC_APP_URL is the app's own
+ * origin, used for reset and invite links.
+ */
+export const AUTH_ENV = Object.freeze([
+  Object.freeze({ name: 'SUPABASE_SERVICE_ROLE_KEY', required: true }),
+  Object.freeze({ name: 'NEXT_PUBLIC_APP_URL', required: true, kind: 'site-origin' }),
+  Object.freeze({ name: 'NEXT_PUBLIC_TURNSTILE_SITE_KEY', required: true }),
+  Object.freeze({ name: 'TURNSTILE_SECRET_KEY', required: true }),
+  Object.freeze({
+    name: 'AUDIT_HMAC_KEY',
+    required: true,
+    pattern: AUDIT_HMAC_KEY_SHAPE,
+    patternHint: 'must be a version, a colon, then at least 32 random characters (for example v1: then the output of openssl rand -base64 48)',
+  }),
+]);
+
 /** Where reportError posts. Optional: with none set it only logs. */
 export const ERROR_SINK_ENV = Object.freeze([Object.freeze({ name: 'ERROR_SINK_URL', kind: 'https-url' })]);
 

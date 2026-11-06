@@ -9,7 +9,7 @@ Next.js 16, React 19, Tailwind CSS 4, Node 24.
 **1. `package.json`**
 
 ```json
-"@anchor-nights/kit": "github:peterjpitcher/OJ-AnchorNights-kit#v1.2.0"
+"@anchor-nights/kit": "github:peterjpitcher/OJ-AnchorNights-kit#v2.0.0"
 ```
 
 The kit expects `react` and `react-dom` 19, `lucide-react` 1.49 or later, and (optionally) `next` 16 in the app. It brings `clsx`, `tailwind-merge`, `qrcode.react`, `zod` and `server-only` itself.
@@ -83,6 +83,7 @@ Tailwind names: `bg-bg`, `bg-surface`, `bg-surface-raised`, `bg-surface-sunk`, `
 | `@anchor-nights/kit/events/shared` | Safe in the browser: the `ScreenFeed` and `ScreenEvent` types, `NIGHT_CATEGORY_SLUGS`, `selectNextOfFormat`, `dropStarted`, `eventLink` and `eventPageLink`, `isAllowedReviewUrl`, `readScreenFeed`, `chooseScreenFeed`, `WHATS_ON_URL`. |
 | `@anchor-nights/kit/events/image-host` | Plain JavaScript, safe for `next.config.ts`: `EVENT_IMAGE_REMOTE_PATTERN`, `isAllowedEventImageUrl`. |
 | `@anchor-nights/kit/events/fixtures` | Made-up management API responses for an app's own tests. |
+| `@anchor-nights/kit/auth` and `auth/*` | Sign-in, invites, roles, the proxy adapter and the migration templates. See Sign-in adoption below. |
 | `@anchor-nights/kit/promo` | `buildIdlePlaylist`, `buildThankYouPlaylist`, `PromoSlide` (draws any slide), `SlideLoop`, `useScreenFeed`, and the slides `EventSlide`, `NextNightSlide`, `WhatsOnSlide`, `ReviewSlide`, `ThankYouSlide`. |
 
 ## TV adoption notes
@@ -186,6 +187,135 @@ Event QR codes use the event's management short link for the playlist's channel 
 
 Guest phones (spec S7.7) can use the same pieces: `selectNextOfFormat(feed.nights, feed.categorySlug, Date.now())` and `isAllowedReviewUrl` from `@anchor-nights/kit/events/shared`.
 
+## Sign-in adoption (spec K5, auth standard v2.3)
+
+The `auth` module is the workspace auth standard (`.claude/docs/auth-standard.md` v2.3) for the four game nights: email and password only, invite only, roles `admin`, `host` and `pending` from `profiles.role`. The kit never makes a Supabase client or reads a key: every factory takes the app's own clients.
+
+| Import | Where it runs | What it gives you |
+|---|---|---|
+| `@anchor-nights/kit/auth` | **Server only** | `defineAuthConfig`, `readAuthEnv`, `createAuthActions` (signIn, signOut, requestPasswordReset, confirmRecovery, resetPassword, changePassword, acceptInvite), `createAdminActions` (issueInvite, cancelInvite, changeRole, deactivateUser, reactivateUser, revokeSessions, changeEmail, listInvites, listStaff), `createAuthMaintenance` (pruneAuthData, reconcileInvites), `createAuthHelpers` (getCurrentUser, getCurrentRole, requireAuth, requireRole, authorise, authoriseRoute), `validatePassword`, `createHibpChecker`, `verifyTurnstile`, `isSameOriginRequest`, the limiter and the auditor, and everything in `auth/shared`. |
+| `@anchor-nights/kit/auth/shared` | Anywhere | `toAppRole`, `roleSatisfies`, `safeNextPath`, `AuthFormState`, `AUTH_MESSAGES`, `DEFAULT_AUTH_PATHS`, the password limits, `CAPTCHA_FIELD`, `TURNSTILE_ACTIONS`. |
+| `@anchor-nights/kit/auth/screens` | Client components | `SignInScreen`, `PendingScreen`, `ForgotPasswordScreen`, `ConfirmRecoveryScreen`, `ResetPasswordScreen`, `AcceptInviteScreen`, `ChangePasswordForm`, `SignOutButton`, `InvitePanel`, `StaffPanel`, `TurnstileWidget`, `AuthShell`. |
+| `@anchor-nights/kit/auth/proxy` | `proxy.ts` | `createAuthProxy({ supabaseUrl, supabaseKey, routes, homeForRole })`. |
+| `@anchor-nights/kit/auth/headers` | `next.config.ts` (plain JS) | `securityHeaders`, `buildContentSecurityPolicy`, `TURNSTILE_ORIGIN`. |
+| `@anchor-nights/kit/auth/sql` | Node (plain JS) | `renderAuthMigrations`, `renderActiveStaffGate`, `authMigrationFiles`, `ACTIVE_STAFF_GATE_AUDIT_SQL`; the CLI is `src/auth/sql/print.js`. |
+
+The app needs `@supabase/supabase-js` 2.101 or later and `@supabase/ssr` 0.10 or later (Cash Bingo is on `@supabase/ssr` 0.8 and must upgrade first).
+
+### 1. Environment
+
+Add `...AUTH_ENV` to `validateBuildEnv` in `next.config.ts` (beside `SUPABASE_PUBLIC_ENV`), and call `readAuthEnv()` where the server builds its config. Every one is required on every build:
+
+| Variable | What it is |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | As now. |
+| `SUPABASE_SERVICE_ROLE_KEY` | The admin client. Server only. |
+| `NEXT_PUBLIC_APP_URL` | The app's own origin, per environment. Reset and invite links are built on it. |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | The shared Turnstile widget (one widget, all four hostnames). |
+| `AUDIT_HMAC_KEY` | `v1:` then `openssl rand -base64 48`. Pseudonymises emails in the audit. One per app, never shared. |
+
+### 2. Migrations, in this order
+
+```bash
+node node_modules/@anchor-nights/kit/src/auth/sql/print.js \
+  --profile-id user_id \                # Quiz Night: user_id. Cash Bingo: id. A project with no profiles table: id.
+  --gate sessions,game_states \         # every public table the authenticated role can reach
+  --out supabase/migrations --timestamp 20261110120000
+```
+
+That writes six files: `kit_auth_profiles_and_gate`, `kit_auth_audit`, `kit_auth_invites`, `kit_auth_recovery_grants`, `kit_auth_hooks_and_retention`, `kit_auth_active_staff_gate`. Apply them in that order through `prod-migrate`. Each is safe to apply twice. Then run `ACTIVE_STAFF_GATE_AUDIT_SQL` in the app's own replay test and expect no rows: any table it lists is reachable by a deactivated or pending account.
+
+What they add: `deactivated_at` on `profiles` (the table is created only if absent), `is_active_staff()`, `is_active_admin()`, `current_staff_role()`, the `kit_profiles_guard` trigger (nobody signed in can change their own role or access), and the tables `auth_audit`, `invites` and `recovery_grants` with their `kit_*` functions. Every function is `SECURITY DEFINER` with an empty `search_path`; execute is revoked from `public` and `anon` and granted only where needed.
+
+### 3. Server Actions
+
+Next needs `'use server'` in the app, so each app has one small file:
+
+```ts
+// src/app/auth/actions.ts
+'use server';
+import { cookies, headers } from 'next/headers';
+import { createAuthActions, defineAuthConfig, readAuthEnv, type AuthFormState } from '@anchor-nights/kit/auth';
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { reportError } from '@anchor-nights/kit/errors';
+
+const env = readAuthEnv();
+const config = defineAuthConfig({
+  app: 'anchor-quiz',
+  environment: process.env.VERCEL_ENV ?? 'development',
+  appUrl: env.NEXT_PUBLIC_APP_URL,
+  auditHmacKey: env.AUDIT_HMAC_KEY,
+  homeForRole: { admin: '/admin', host: '/host' },
+  // Every alert is reported; a 'high' one must also reach a person (the app's own route).
+  alert: (a) => reportError({ scope: `auth:${a.kind}` }, new Error(a.message), { app: 'anchor-quiz' }),
+});
+const auth = createAuthActions({ config, serverClient: createClient, adminClient: createAdminClient, cookies, headers });
+
+export async function signIn(prev: AuthFormState, fd: FormData) { return auth.signIn(prev, fd); }
+export async function signOut() { return auth.signOut(); }
+// ...and the same one-liner for requestPasswordReset, confirmRecovery, resetPassword, changePassword, acceptInvite.
+```
+
+`createAdminActions({ ...sameDeps, profileIdColumn: 'user_id' })` the same way for the admin page, and `createAuthHelpers({ config, serverClient: createClient, redirect })` for pages (`requireRole(['admin'])`) and Route Handlers (`authoriseRoute`).
+
+### 4. Pages
+
+| Route | Page |
+|---|---|
+| `/login` | `<SignInScreen action={signIn} turnstileSiteKey={...} next={searchParams.next} />` |
+| `/pending` | `<PendingScreen signOutAction={signOut} email={user?.email} />` |
+| `/forgot-password` | `<ForgotPasswordScreen action={requestPasswordReset} turnstileSiteKey={...} />` |
+| `/auth/confirm` | `<ConfirmRecoveryScreen action={confirmRecovery} tokenHash={searchParams.token_hash} type={searchParams.type} />` (opening it does nothing; Continue POSTs) |
+| `/auth/reset-password` | `<ResetPasswordScreen action={resetPassword} />` |
+| `/invite` | `<AcceptInviteScreen action={acceptInvite} turnstileSiteKey={...} />` (reads `#t=` from the fragment) |
+| admin page | `<InvitePanel>` and `<StaffPanel>` with the admin actions and `listInvites()` and `listStaff()` |
+
+Remove any `/register` or sign-up route (it must 404). Put `<ChangePasswordForm>` and `<SignOutButton>` wherever the app's account menu is.
+
+### 5. Proxy and headers
+
+```ts
+// src/proxy.ts
+import { createAuthProxy } from '@anchor-nights/kit/auth/proxy';
+export const proxy = createAuthProxy({
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  routes: [{ prefix: '/admin', roles: ['admin'] }, { prefix: '/host', roles: ['admin', 'host'] }, { prefix: '/api/admin', roles: ['admin'] }],
+  homeForRole: { admin: '/admin', host: '/host' },
+});
+export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|svg|webp)$).*)'] };
+```
+
+In `next.config.ts`: `headers: async () => [{ source: '/:path*', headers: securityHeaders({ supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL, cspMode: 'report-only' }) }]`. Move to `cspMode: 'enforce'` after two weeks of clean reports.
+
+### 6. Daily cron
+
+One route protected by the app's `CRON_SECRET` (never callable from a browser) calling `createAuthMaintenance({ config, adminClient }).pruneAuthData()` and `.reconcileInvites()`. Retention: sign-in telemetry 12 months, other audit events 6 years, finished invites 12 months.
+
+### 7. Supabase dashboard checklist (per project, per environment)
+
+- **Authentication, Sign In / Providers:** Allow new users to sign up OFF. Anonymous sign-ins OFF. Every provider except Email OFF. Email: Secure password change OFF; minimum password length 12.
+- **Authentication, Sessions:** JWT expiry 900 seconds (15 minutes). Inactivity timeout OFF. Time-box user sessions OFF. Single session per user OFF.
+- **Authentication, Attack Protection:** CAPTCHA ON, provider Turnstile, with `TURNSTILE_SECRET_KEY`. Break-glass: switch it off only during a verified Turnstile outage and back on within 24 hours (a sign-in with no token raises a high alert).
+- **Authentication, Hooks:** Before User Created hook ON, Postgres function `public.kit_before_user_created`. (The Send Email Hook stays OFF; see Decisions.)
+- **Authentication, URL Configuration:** Site URL exactly the app origin. Redirect URLs: only the exact `/auth/confirm` URL for each environment, no wildcards in production.
+- **Authentication, Emails, SMTP:** custom SMTP ON with the shared sender (SPF, DKIM, DMARC; no click tracking).
+- **Authentication, Emails, Templates:** Reset password active, linking to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`, saying the link lasts 60 minutes. Magic link and Confirm signup neutered: plain text with no link and no code. Change email active. Invite unused (the kit's invites are copied links). Email OTP expiry 3600 seconds.
+
+Negative proofs to record per app: a sign-up request creates no user; a magic link request sends nothing usable; `/auth/confirm` refuses `type=magiclink`; a deactivated host's still-valid JWT reads no rows.
+
+### Decisions and limits
+
+- **No Send Email Hook.** The standard's primary passwordless control is a Send Email Hook rejecting magic link and sign-up mail. In Supabase that hook replaces Auth's own sending, so with it on, reset emails would need an email service the apps do not have. The kit uses three layers instead: the Before User Created hook (no account is ever created outside an invite acceptance), neutered magic link and sign-up templates (nothing usable is sent), and a recovery-only `/auth/confirm`. An existing staff member can still be sent a neutered magic link email.
+- **Breach check fails open** with a `breach_check_unavailable` audit event, as standard section 12 says. Length rules always apply.
+- **Forgot password** answers the same for an unknown address, a cooldown and a Supabase limit, but shows an error when the email could not be sent or a dependency is down (fail closed).
+- **Reset limits** (one request per address a minute, 20 per IP in 15 minutes) are the kit's own; the standard fixes only the sign-in limits.
+- **Invites are copied links** (`/invite#t=<token>`, 7 days, one use, a resend cancels the old one) sent by text or WhatsApp. The token is in the fragment, so it never reaches a server log.
+- **Audit table** is `auth_audit`. An app that wants its main audit table instead passes `auditSink`, and must then pass its own `limiter`, because the default limiter counts failures in `auth_audit`.
+- **Alerts** (a sign-in with no CAPTCHA token, an orphaned invite user, a failed ban) go to the app's `alert` handler; reaching a person, and repeating daily, is the app's job.
+- **Admin email change** tells both addresses only if the app passes `notifyEmailChange`; otherwise the admin is told to.
+
 ## Release rule
 
 A release is a git tag (`v1.0.0`, `v1.1.0`, ...). Each app moves to a new tag in its own PR, one app at a time, never all at once. A breaking change is a new major version.
@@ -196,4 +326,5 @@ A release is a git tag (`v1.0.0`, `v1.1.0`, ...). Each app moves to a new tag in
 nvm use            # Node 24
 npm ci
 npm run verify     # lint (zero warnings), typecheck, tests under Europe/London and under UTC
+npm run test:db    # replays the auth migration templates on a throwaway Postgres 17 (needs initdb, pg_ctl, psql)
 ```

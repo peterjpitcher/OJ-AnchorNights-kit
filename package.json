@@ -1,7 +1,7 @@
 {
   "name": "@anchor-nights/kit",
-  "version": "1.2.0",
-  "description": "Shared look, TV and engineering kit for The Anchor's game nights (Quiz Night, Cash Bingo, Music Bingo, Tasting Night).",
+  "version": "2.0.0",
+  "description": "Shared look, TV, sign-in and engineering kit for The Anchor's game nights (Quiz Night, Cash Bingo, Music Bingo, Tasting Night).",
   "license": "UNLICENSED",
   "private": true,
   "type": "module",
@@ -74,6 +74,30 @@
       "types": "./src/promo/index.ts",
       "default": "./src/promo/index.ts"
     },
+    "./auth": {
+      "types": "./src/auth/index.ts",
+      "default": "./src/auth/index.ts"
+    },
+    "./auth/shared": {
+      "types": "./src/auth/shared.ts",
+      "default": "./src/auth/shared.ts"
+    },
+    "./auth/screens": {
+      "types": "./src/auth/screens/index.ts",
+      "default": "./src/auth/screens/index.ts"
+    },
+    "./auth/proxy": {
+      "types": "./src/auth/proxy.ts",
+      "default": "./src/auth/proxy.ts"
+    },
+    "./auth/headers": {
+      "types": "./src/auth/headers.d.ts",
+      "default": "./src/auth/headers.js"
+    },
+    "./auth/sql": {
+      "types": "./src/auth/sql/index.d.ts",
+      "default": "./src/auth/sql/index.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -82,16 +106,25 @@
     "test": "TZ=Europe/London vitest run",
     "test:utc": "TZ=UTC vitest run",
     "test:watch": "vitest",
-    "verify": "npm run lint && npm run typecheck && npm test && npm run test:utc"
+    "verify": "npm run lint && npm run typecheck && npm test && npm run test:utc",
+    "test:db": "bash test/db/run.sh"
   },
   "peerDependencies": {
     "lucide-react": "^1.49.0",
     "next": "^16",
     "react": "^19",
-    "react-dom": "^19"
+    "react-dom": "^19",
+    "@supabase/ssr": ">=0.10.0",
+    "@supabase/supabase-js": ">=2.101.0"
   },
   "peerDependenciesMeta": {
     "next": {
+      "optional": true
+    },
+    "@supabase/ssr": {
+      "optional": true
+    },
+    "@supabase/supabase-js": {
       "optional": true
     }
   },
@@ -105,6 +138,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.0",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^24",
     "@types/react": "^19.3.0",
@@ -113,6 +148,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "jsdom": "^31.0.0",
     "lucide-react": "^1.70.0",
+    "next": "^16.4.5",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "typescript": "^5.9.3",
