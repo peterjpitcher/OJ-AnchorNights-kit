@@ -1,6 +1,6 @@
 {
   "name": "@anchor-nights/kit",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Shared look, TV and engineering kit for The Anchor's game nights (Quiz Night, Cash Bingo, Music Bingo, Tasting Night).",
   "license": "UNLICENSED",
   "private": true,
@@ -54,6 +54,26 @@
       "types": "./src/tv/index.ts",
       "default": "./src/tv/index.ts"
     },
+    "./events": {
+      "types": "./src/events/index.ts",
+      "default": "./src/events/index.ts"
+    },
+    "./events/shared": {
+      "types": "./src/events/shared.ts",
+      "default": "./src/events/shared.ts"
+    },
+    "./events/fixtures": {
+      "types": "./src/events/fixtures.ts",
+      "default": "./src/events/fixtures.ts"
+    },
+    "./events/image-host": {
+      "types": "./src/events/image-host.d.ts",
+      "default": "./src/events/image-host.js"
+    },
+    "./promo": {
+      "types": "./src/promo/index.ts",
+      "default": "./src/promo/index.ts"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -79,7 +99,9 @@
     "clsx": "^2.1.1",
     "nosleep.js": "^0.12.0",
     "qrcode.react": "^4.2.0",
-    "tailwind-merge": "^3.7.0"
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.7.0",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
