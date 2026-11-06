@@ -54,34 +54,66 @@ export interface LayoutMetrics {
   paddingBottom: number;
   /** Bottom edge of the lowest content, measured from the top of the content area. */
   contentBottom: number;
+  /**
+   * Top edge of the highest content, measured the same way. Negative when
+   * content spills above the area (a centred column that has grown too
+   * tall). Optional: left out, only the bottom is checked.
+   */
+  contentTop?: number;
   /** Space left for something that needs a minimum (a picture), with that minimum. */
   reserved?: ReadonlyArray<{ height: number; min: number }>;
 }
 
 /**
- * Whether a laid-out screen fits: its lowest content clears the bottom
- * padding (with a pixel of rounding), and everything that needs a minimum
- * height has it. Nothing laid out (a test, a hidden tab) counts as fitting.
+ * Whether a laid-out screen fits: its content stays inside the area (with a
+ * pixel of rounding at each edge), its lowest content clears the bottom
+ * padding, and everything that needs a minimum height has it. Nothing laid
+ * out (a test, a hidden tab) counts as fitting.
  */
-export function layoutFits({ containerHeight, paddingBottom, contentBottom, reserved = [] }: LayoutMetrics): boolean {
+export function layoutFits({ containerHeight, paddingBottom, contentBottom, contentTop = 0, reserved = [] }: LayoutMetrics): boolean {
   if (containerHeight <= 0) return true;
+  if (contentTop < -1) return false;
   if (contentBottom > containerHeight - paddingBottom + 1) return false;
   return reserved.every(({ height, min }) => height >= min);
 }
 
 /**
- * Reads LayoutMetrics off an element: its height and bottom padding, and
- * the lowest bottom edge of its descendants. For a `fits` callback:
+ * How much an element is drawn larger or smaller than its own layout size:
+ * its on-screen height (getBoundingClientRect, which includes every CSS
+ * transform above it, such as the Stage's scale) over its layout height
+ * (offsetHeight, which does not). 1 when either is 0, so a hidden element
+ * never divides by zero.
+ */
+export function drawnScale(drawnHeight: number, layoutHeight: number): number {
+  if (!(drawnHeight > 0) || !(layoutHeight > 0)) return 1;
+  return drawnHeight / layoutHeight;
+}
+
+/**
+ * Reads LayoutMetrics off an element, in its own layout pixels: its height
+ * and bottom padding, and the highest and lowest edges of its descendants.
+ * For a `fits` callback:
  *
  *   useFitStep(ref, steps.length, (el) => layoutFits(measureLayout(el)), key)
+ *
+ * Inside a scaled Stage the descendants' on-screen rectangles are divided by
+ * the element's drawn scale, so every figure is in canvas pixels whatever
+ * the size of the TV. Elements with no size (display: none, an empty span)
+ * are skipped.
  */
 export function measureLayout(element: HTMLElement): LayoutMetrics {
   const box = element.getBoundingClientRect();
+  const scale = drawnScale(box.height, element.offsetHeight);
   const paddingBottom = Number.parseFloat(getComputedStyle(element).paddingBottom) || 0;
+  let contentTop = 0;
   let contentBottom = 0;
   for (const child of Array.from(element.querySelectorAll<HTMLElement>('*'))) {
-    const bottom = child.getBoundingClientRect().bottom - box.top;
+    const rect = child.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) continue;
+    const top = (rect.top - box.top) / scale;
+    const bottom = (rect.bottom - box.top) / scale;
+    if (top < contentTop) contentTop = top;
     if (bottom > contentBottom) contentBottom = bottom;
   }
-  return { containerHeight: element.clientHeight, paddingBottom, contentBottom };
+  return { containerHeight: element.clientHeight, paddingBottom, contentBottom, contentTop };
 }

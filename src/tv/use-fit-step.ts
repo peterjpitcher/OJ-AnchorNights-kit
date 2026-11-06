@@ -12,6 +12,10 @@ import { useEffect, useLayoutEffect, useState, type RefObject } from 'react';
  * search also restarts once web fonts finish loading, because the fallback
  * font measures differently. Keep `fits` stable (useCallback or a module
  * function), or the search re-runs every render.
+ *
+ * Inside a Stage, measure in canvas pixels: measureLayout does (since 2.0.1),
+ * and a `fits` of an app's own should use offsetWidth and offsetHeight, or
+ * divide getBoundingClientRect by the drawn scale, never mix the two.
  */
 export function useFitStep(
   ref: RefObject<HTMLElement | null>,

@@ -22,7 +22,7 @@ import { cn } from '../ui/cn';
 import { eventImageSizes, eventImageSrcSet, nextImageSrc, MAX_EVENT_IMAGE_WIDTH, type EventImageSrc } from './event-image';
 
 // At least 40% of the screen height: 432px at 1080p, 288px at 720p.
-const EVENT_QR_SIZE = 'max(40vh, 288px)';
+const EVENT_QR_SIZE = 'max(calc(40 * var(--anchor-vh, 1vh)), 288px)';
 
 // Images that failed on this screen, by URL, with when (the screen's clock).
 // Each pass of the loop draws a slide afresh, so without this a missing image
@@ -80,7 +80,7 @@ export function EventSlide({
   );
 
   const renderText = (titleClampClass: string): React.ReactElement => (
-    <div className="flex shrink-0 flex-col gap-[0.8vh]">
+    <div className="flex shrink-0 flex-col gap-[calc(0.8*var(--anchor-vh,1vh))]">
       <p className={TV_KICKER_CLASS}>{eyebrow}</p>
       {/* leading-[1.15]: the clamp hides overflow, and a tighter line shaves descenders. */}
       <h2 className={tvText('lg', titleClampClass, 'leading-[1.15]')}>{event.title}</h2>
@@ -91,15 +91,15 @@ export function EventSlide({
   return (
     <section
       aria-label={event.title}
-      className="mx-auto flex h-full w-full max-w-[1800px] items-stretch gap-[3vw] overflow-hidden text-anchor-cream-text"
+      className="mx-auto flex h-full w-full max-w-[1800px] items-stretch gap-[calc(3*var(--anchor-vw,1vw))] overflow-hidden text-anchor-cream-text"
     >
       {image?.square ? (
         <>
-          <div className="flex shrink-0 items-center">{renderImage(image, 'relative aspect-square h-full max-h-[36vw]')}</div>
-          <div className="flex min-w-0 flex-1 flex-col justify-center gap-[1.6vh] text-left">{renderText('line-clamp-4')}</div>
+          <div className="flex shrink-0 items-center">{renderImage(image, 'relative aspect-square h-full max-h-[calc(36*var(--anchor-vw,1vw))]')}</div>
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-[calc(1.6*var(--anchor-vh,1vh))] text-left">{renderText('line-clamp-4')}</div>
         </>
       ) : (
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-[1.6vh] text-left">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-[calc(1.6*var(--anchor-vh,1vh))] text-left">
           {/* The largest 16:9 box that fits the stretch (cqh and cqw are its own height and width). */}
           {image && (
             <div className="flex min-h-0 flex-1 items-end [container-type:size]">
@@ -110,8 +110,8 @@ export function EventSlide({
         </div>
       )}
 
-      <div className="flex shrink-0 flex-col items-center justify-center gap-[1.5vh] pr-[3vw]">
-        <div className="rounded-card border border-line-gold bg-white p-[clamp(13px,1.85vh,20px)]">
+      <div className="flex shrink-0 flex-col items-center justify-center gap-[calc(1.5*var(--anchor-vh,1vh))] pr-[calc(3*var(--anchor-vw,1vw))]">
+        <div className="rounded-card border border-line-gold bg-white p-[clamp(13px,calc(1.85*var(--anchor-vh,1vh)),20px)]">
           <Qr
             value={qrUrl}
             size={432}

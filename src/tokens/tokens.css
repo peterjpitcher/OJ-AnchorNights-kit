@@ -252,22 +252,27 @@
   /* Pub TV text (Cash Bingo spec 5.7). Each is clamp(size at 1280x720, a vh
      term landing on the 1920x1080 size, cap), so the floors hold on both:
      32px and 22px for any text, 44px and 30px for key information. Use them
-     through tvText() from @anchor-nights/kit/tv. */
-  --text-tv-xs: clamp(22px, 3vh, 32.4px);
+     through tvText() from @anchor-nights/kit/tv.
+
+     The vh and vw terms are written as var(--anchor-vh) and var(--anchor-vw)
+     (below, with the Stage): a window's 1vh and 1vw on a page that fills the
+     screen, and 1% of the 1920x1080 canvas inside a Stage, so text there is
+     sized once, by the Stage's scale, not twice. */
+  --text-tv-xs: clamp(22px, calc(3 * var(--anchor-vh, 1vh)), 32.4px);
   --text-tv-xs--line-height: 1.25;
-  --text-tv-sm: clamp(26px, 3.5vh, 37.8px);
+  --text-tv-sm: clamp(26px, calc(3.5 * var(--anchor-vh, 1vh)), 37.8px);
   --text-tv-sm--line-height: 1.2;
-  --text-tv-base: clamp(30px, 4.1vh, 44.3px);
+  --text-tv-base: clamp(30px, calc(4.1 * var(--anchor-vh, 1vh)), 44.3px);
   --text-tv-base--line-height: 1.15;
-  --text-tv-lg: clamp(36px, 5.2vh, 96px);
+  --text-tv-lg: clamp(36px, calc(5.2 * var(--anchor-vh, 1vh)), 96px);
   --text-tv-lg--line-height: 1.05;
-  --text-tv-xl: clamp(40px, 6.5vh, 120px);
+  --text-tv-xl: clamp(40px, calc(6.5 * var(--anchor-vh, 1vh)), 120px);
   --text-tv-xl--line-height: 1.05;
-  --text-tv-2xl: clamp(44px, 8vh, 140px);
+  --text-tv-2xl: clamp(44px, calc(8 * var(--anchor-vh, 1vh)), 140px);
   --text-tv-2xl--line-height: 1.05;
-  --text-tv-3xl: clamp(56px, 11vh, 200px);
+  --text-tv-3xl: clamp(56px, calc(11 * var(--anchor-vh, 1vh)), 200px);
   --text-tv-3xl--line-height: 0.95;
-  --text-tv-4xl: clamp(48px, 10vw, 144px);
+  --text-tv-4xl: clamp(48px, calc(10 * var(--anchor-vw, 1vw)), 144px);
   --text-tv-4xl--line-height: 0.9;
 }
 
@@ -388,10 +393,18 @@
     transform-origin: center center;
   }
 
+  /* Inside the canvas a vh is 1% of 1080px and a vw 1% of 1920px, not of
+     the window: the TV text sizes and the promo slides measure against the
+     canvas, which the Stage then scales once. Outside a Stage nothing sets
+     these and every var(--anchor-vh, 1vh) falls back to the window's 1vh.
+     A screen of an app's own can use them the same way:
+     calc(40 * var(--anchor-vh, 1vh)). */
   .anchor-stage-canvas {
     position: absolute;
     inset: 0;
     overflow: hidden;
+    --anchor-vh: 10.8px;
+    --anchor-vw: 19.2px;
   }
 }
 
