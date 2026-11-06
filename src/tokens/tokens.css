@@ -1,0 +1,414 @@
+/* @anchor-nights/kit: the Anchor look, as Tailwind v4 tokens.
+
+   Import it once, straight after Tailwind, in the app's globals.css:
+
+     @import "tailwindcss";
+     @import "@anchor-nights/kit/tokens.css";
+     @source "../../node_modules/@anchor-nights/kit/src";
+
+   (The @source path is relative to globals.css; the line above suits
+   src/app/globals.css. It lets Tailwind see the classes the kit's
+   components use.)
+
+   Fonts: load DM Serif Display, Outfit and Clicker Script with next/font in
+   the root layout, with the CSS variable names --font-dm-serif,
+   --font-outfit and --font-clicker (exported as FONT_VARIABLES from
+   @anchor-nights/kit/tokens' TypeScript side). The README has the snippet.
+
+   Two registers (spec S5.2):
+     night  dark green, cream text, bright gold: the TV, guests' phones and
+            the host console. The default, on :root.
+     desk   light cream, charcoal text, green and gold: prep, builders and
+            admin. Put class="theme-desk" (or data-theme="desk") on the
+            surface's root.
+   class="theme-night" (or data-theme="night") switches a surface inside a
+   desk page back to night.
+
+   Every hex value below is The Anchor's own, taken from Cash Bingo's
+   globals.css (design handoff, 1 Oct 2026) and Quiz Night's tokens.css and
+   anchor.css (reskin, 7 Oct 2026). Do not add new ones.
+
+   Components use the Tailwind names in @theme below (bg-surface, text-fg,
+   border-line-gold, bg-anchor-gold and so on), never a raw hex. The theme is
+   `inline`, so every utility reads its variable where it is used: a special
+   night's colours set as variables on a surface's root reach every
+   component inside it. */
+
+/* ------------------------------------------------------------------ */
+/* Raw palette                                                         */
+/* ------------------------------------------------------------------ */
+:root {
+  --anchor-green: #005131;
+  --anchor-green-dark: #003d25;
+  --anchor-green-deep: #0c1d11;
+  --anchor-green-raised: #132318;
+  --anchor-green-card: #172d1e;
+  --anchor-green-light: #006b45;
+  --anchor-sunk: #081509;
+  --anchor-sage: #7a8b7f;
+  --anchor-gold: #a57626;
+  --anchor-gold-dark: #8b6914;
+  --anchor-gold-bright: #c9a020;
+  --anchor-charcoal: #1a1a1a;
+  --anchor-cream: #faf8f3;
+  --anchor-cream-text: #f0e6c6;
+  --anchor-paper: #ffffff;
+  --anchor-paper-sunk: #f2ede3;
+  --anchor-sand: #f5e6d3;
+  --anchor-grey-500: #6f6a61;
+  --anchor-line: #e2dccf;
+  --anchor-line-strong: #d2c9b4;
+  --anchor-success: #006b45;
+  --anchor-danger: #b1372f;
+  /* Status text on a dark surface. The brand danger (#b1372f) is about 2.4:1
+     on a dark card, so text uses this lighter tint and the brand value stays
+     for fills and borders (Cash Bingo). */
+  --anchor-success-text: #6ddaa1;
+  --anchor-danger-text: #e57368;
+
+  /* Effects, the same in both registers. */
+  --anchor-shadow-gold: 0 6px 24px rgba(165, 118, 38, 0.28);
+  --anchor-shadow-lift: 0 10px 40px rgba(0, 0, 0, 0.1);
+  --anchor-shadow-sheet: 0 -20px 60px rgba(0, 0, 0, 0.4);
+  --anchor-shadow-sm: 0 2px 8px rgba(26, 26, 26, 0.06);
+  --anchor-shadow-md: 0 8px 20px rgba(26, 26, 26, 0.08);
+  --anchor-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --anchor-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --anchor-scrim: rgba(8, 21, 9, 0.78);
+  --anchor-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ------------------------------------------------------------------ */
+/* Registers: the semantic variables every component reads             */
+/* ------------------------------------------------------------------ */
+
+/* Night (the default). Cash Bingo's :root and Quiz Night's .theme-dark. */
+:root,
+.theme-night,
+[data-theme="night"] {
+  --bg: #0c1d11;
+  --surface: #172d1e;
+  --surface-raised: #132318;
+  --surface-sunk: #081509;
+  --text: #f0e6c6;
+  --text-strong: #f0e6c6;
+  --text-muted: #7a8b7f;
+  --accent: #c9a020;
+  --accent-text: #c9a020;
+  --on-accent: #0c1d11;
+  --border: rgba(201, 160, 32, 0.22);
+  --border-strong: rgba(201, 160, 32, 0.45);
+  --border-gold: rgba(201, 160, 32, 0.55);
+  --focus-ring: #c9a020;
+  --hover-tint: rgba(255, 255, 255, 0.06);
+  --success-text: #6ddaa1;
+  --success-fill: rgba(109, 218, 161, 0.16);
+  --danger-text: #e57368;
+  --danger-fill: rgba(177, 55, 47, 0.12);
+  /* Cards: crisp 3px corners and a gold hairline, no shadow. */
+  --card-radius: 3px;
+  --card-border: rgba(201, 160, 32, 0.55);
+  --card-accent: #c9a020;
+  --card-shadow: none;
+  /* Fields: sunk into the page green, a gold hairline that brightens on focus. */
+  --field-bg: #0c1d11;
+  --field-text: #f0e6c6;
+  --field-border: rgba(201, 160, 32, 0.45);
+  --field-border-width: 1px;
+  --field-placeholder: #7a8b7f;
+  --field-focus: #c9a020;
+  --field-focus-ring: rgba(201, 160, 32, 0.15);
+  color-scheme: dark;
+}
+
+/* Desk. Quiz Night's .theme-light and its light card and input. */
+.theme-desk,
+[data-theme="desk"] {
+  --bg: #faf8f3;
+  --surface: #ffffff;
+  --surface-raised: #faf8f3;
+  --surface-sunk: #f2ede3;
+  --text: #1a1a1a;
+  --text-strong: #005131;
+  --text-muted: #6f6a61;
+  --accent: #005131;
+  --accent-text: #8b6914;
+  --on-accent: #ffffff;
+  --border: #e2dccf;
+  --border-strong: #d2c9b4;
+  --border-gold: rgba(165, 118, 38, 0.35);
+  --focus-ring: #8b6914;
+  --hover-tint: rgba(0, 0, 0, 0.06);
+  --success-text: #006b45;
+  --success-fill: rgba(0, 107, 69, 0.12);
+  --danger-text: #b1372f;
+  --danger-fill: rgba(177, 55, 47, 0.12);
+  --card-radius: 12px;
+  --card-border: #e2dccf;
+  --card-accent: #a57626;
+  --card-shadow: 0 2px 8px rgba(26, 26, 26, 0.06);
+  --field-bg: #ffffff;
+  --field-text: #1a1a1a;
+  --field-border: #d2c9b4;
+  --field-border-width: 1.5px;
+  --field-placeholder: #6f6a61;
+  --field-focus: #8b6914;
+  --field-focus-ring: rgba(139, 105, 20, 0.12);
+  color-scheme: light;
+}
+
+.theme-night,
+[data-theme="night"],
+.theme-desk,
+[data-theme="desk"] {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------------ */
+/* Tailwind names                                                      */
+/* ------------------------------------------------------------------ */
+@theme inline {
+  /* The raw palette, for the few places that need a fixed brand colour
+     whatever the register (the primary button's gold, a bingo ball's green). */
+  --color-anchor-green: var(--anchor-green);
+  --color-anchor-green-dark: var(--anchor-green-dark);
+  --color-anchor-green-deep: var(--anchor-green-deep);
+  --color-anchor-green-raised: var(--anchor-green-raised);
+  --color-anchor-green-card: var(--anchor-green-card);
+  --color-anchor-green-light: var(--anchor-green-light);
+  --color-anchor-sunk: var(--anchor-sunk);
+  --color-anchor-sage: var(--anchor-sage);
+  --color-anchor-gold: var(--anchor-gold);
+  --color-anchor-gold-dark: var(--anchor-gold-dark);
+  --color-anchor-gold-bright: var(--anchor-gold-bright);
+  --color-anchor-charcoal: var(--anchor-charcoal);
+  --color-anchor-cream: var(--anchor-cream);
+  --color-anchor-cream-text: var(--anchor-cream-text);
+  --color-anchor-paper: var(--anchor-paper);
+  --color-anchor-sand: var(--anchor-sand);
+  --color-anchor-grey-500: var(--anchor-grey-500);
+  --color-anchor-success: var(--anchor-success);
+  --color-anchor-success-text: var(--anchor-success-text);
+  --color-anchor-danger: var(--anchor-danger);
+  --color-anchor-danger-text: var(--anchor-danger-text);
+
+  /* The register's semantics: these follow night or desk. */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunk: var(--surface-sunk);
+  --color-fg: var(--text);
+  --color-fg-strong: var(--text-strong);
+  --color-fg-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-text: var(--accent-text);
+  --color-on-accent: var(--on-accent);
+  --color-focus: var(--focus-ring);
+  --color-hover: var(--hover-tint);
+  --color-success-text: var(--success-text);
+  --color-success-fill: var(--success-fill);
+  --color-danger-text: var(--danger-text);
+  --color-danger-fill: var(--danger-fill);
+  --color-card-border: var(--card-border);
+  --color-card-accent: var(--card-accent);
+  --color-field: var(--field-bg);
+  --color-field-text: var(--field-text);
+  --color-field-border: var(--field-border);
+  --color-field-placeholder: var(--field-placeholder);
+  --color-field-focus: var(--field-focus);
+  --color-scrim: var(--anchor-scrim);
+  /* Hairlines: border-line (rows), border-line-strong (inputs, emphasis),
+     border-line-gold (cards, bars). */
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-line-gold: var(--border-gold);
+
+  /* Type. The variables are set by next/font in the app's root layout. */
+  --font-display: var(--font-dm-serif), "Times New Roman", serif;
+  --font-sans: var(--font-outfit), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-script: var(--font-clicker), "Brush Script MT", cursive;
+
+  /* Shapes: cards (3px at night, 12px at the desk), 6px inputs, and
+     rounded-full for buttons, badges and chips. */
+  --radius-card: var(--card-radius);
+  --radius-input: 6px;
+
+  --shadow-gold: var(--anchor-shadow-gold);
+  --shadow-lift: var(--anchor-shadow-lift);
+  --shadow-sheet: var(--anchor-shadow-sheet);
+  --shadow-card: var(--card-shadow);
+  --shadow-field-focus: 0 0 0 4px var(--field-focus-ring);
+
+  --ease-anchor: var(--anchor-ease);
+  --ease-anchor-in-out: var(--anchor-ease-in-out);
+
+  /* Fades and short rises only (150 to 400ms), no bounces and no loops on
+     content. Reduced motion switches all of them off (below). */
+  --animate-fade-up: anchor-fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in: anchor-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-sheet-up: anchor-sheet-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  /* Pub TV text (Cash Bingo spec 5.7). Each is clamp(size at 1280x720, a vh
+     term landing on the 1920x1080 size, cap), so the floors hold on both:
+     32px and 22px for any text, 44px and 30px for key information. Use them
+     through tvText() from @anchor-nights/kit/tv. */
+  --text-tv-xs: clamp(22px, 3vh, 32.4px);
+  --text-tv-xs--line-height: 1.25;
+  --text-tv-sm: clamp(26px, 3.5vh, 37.8px);
+  --text-tv-sm--line-height: 1.2;
+  --text-tv-base: clamp(30px, 4.1vh, 44.3px);
+  --text-tv-base--line-height: 1.15;
+  --text-tv-lg: clamp(36px, 5.2vh, 96px);
+  --text-tv-lg--line-height: 1.05;
+  --text-tv-xl: clamp(40px, 6.5vh, 120px);
+  --text-tv-xl--line-height: 1.05;
+  --text-tv-2xl: clamp(44px, 8vh, 140px);
+  --text-tv-2xl--line-height: 1.05;
+  --text-tv-3xl: clamp(56px, 11vh, 200px);
+  --text-tv-3xl--line-height: 0.95;
+  --text-tv-4xl: clamp(48px, 10vw, 144px);
+  --text-tv-4xl--line-height: 0.9;
+}
+
+@keyframes anchor-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes anchor-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes anchor-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Base                                                                */
+/* ------------------------------------------------------------------ */
+@layer base {
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-outfit), system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* DM Serif Display has one weight. Its contrast is the boldness, so a
+     heading is never faux-bolded. A heading that should be body type takes
+     font-sans. */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  .font-display {
+    font-family: var(--font-dm-serif), "Times New Roman", serif;
+    font-weight: 400;
+    font-synthesis-weight: none;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  .font-script {
+    font-weight: 400;
+    font-synthesis-weight: none;
+    line-height: 1;
+  }
+
+  /* One focus treatment everywhere. */
+  :focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Components that a class is easier for than a React component        */
+/* ------------------------------------------------------------------ */
+@layer components {
+  /* Section label: the only ALL-CAPS text, and only through CSS, so the
+     source stays sentence case. Prefer <Kicker>. In the components layer,
+     so a utility on the same element (a TV size) still wins. */
+  .kicker {
+    font-family: var(--font-outfit), system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent-text);
+  }
+
+  /* Film grain over a full-screen dark surface (TV, landing). The parent
+     must be positioned. */
+  .grain-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: var(--anchor-grain);
+    opacity: 0.05;
+    pointer-events: none;
+  }
+
+  /* The TV stage (@anchor-nights/kit/tv Stage): a fixed 1920 by 1080
+     canvas, scaled to fit the window and letterboxed in black. From Quiz
+     Night's DisplayStage. */
+  .anchor-stage {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: #000;
+  }
+
+  .anchor-stage-scaler {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1920px;
+    height: 1080px;
+    transform-origin: center center;
+  }
+
+  .anchor-stage-canvas {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+}
+
+.min-h-screen-safe {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Reduced motion: no animation and no transitions at all. Unlayered and
+   !important, so it beats every Tailwind animate-* and transition-*
+   utility. Hover lifts are written motion-safe:, so they drop too;
+   transforms are not blanked because some position an element. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
