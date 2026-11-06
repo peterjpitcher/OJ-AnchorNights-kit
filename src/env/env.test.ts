@@ -8,6 +8,7 @@ import { afterEach, beforeEach, test } from 'vitest';
 import assert from 'node:assert/strict';
 import {
   ANCHOR_API_ENV,
+  AUTH_ENV,
   ERROR_SINK_ENV,
   SITE_URL_ENV,
   SUPABASE_PUBLIC_ENV,
@@ -274,4 +275,21 @@ test('index.js stays loadable by next.config.ts: plain JavaScript, no imports', 
   assert.doesNotMatch(source, /^\s*import\s/m);
   assert.doesNotMatch(source, /\brequire\(/);
   assert.doesNotMatch(source, /:\s*(string|number|boolean)\b[^']/, 'no TypeScript annotations');
+});
+
+test('AUTH_ENV requires every auth variable and checks the HMAC key shape without echoing it', () => {
+  const good = {
+    SUPABASE_SERVICE_ROLE_KEY: 'service-role-placeholder',
+    NEXT_PUBLIC_APP_URL: 'https://quiz.example.test',
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'site-key-placeholder',
+    TURNSTILE_SECRET_KEY: 'secret-placeholder',
+    AUDIT_HMAC_KEY: `v1:${'k'.repeat(40)}`,
+  };
+  assert.deepEqual(checkEnv(AUTH_ENV, good), []);
+  const missing = checkEnv(AUTH_ENV, {});
+  assert.equal(missing.length, 5);
+  const bad = checkEnv(AUTH_ENV, { ...good, AUDIT_HMAC_KEY: 'plain-secret-value' });
+  assert.equal(bad.length, 1);
+  assert.match(bad[0], /^AUDIT_HMAC_KEY must be a version/);
+  assert.doesNotMatch(bad[0], /plain-secret-value/);
 });
